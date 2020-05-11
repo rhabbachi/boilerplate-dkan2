@@ -1,0 +1,19 @@
+# yamllint disable rule:line-length rule:document-start
+version: "2.4"
+
+services:
+  cli:
+
+  web:
+    labels:
+      - io.docksal.virtual-host=${VIRTUAL_HOST},*.${VIRTUAL_HOST},${VIRTUAL_HOST}.*
+      - io.docksal.cert-name=${VIRTUAL_HOST_CERT_NAME:-none}
+      - io.docksal.project-root=${PROJECT_ROOT}
+      - io.docksal.permanent=${SANDBOX_PERMANENT:-false}
+
+  db:
+    ports:
+      - "${MYSQL_PORT_MAPPING:-3306}"
+    dns:
+      - ${DOCKSAL_DNS1}
+      - ${DOCKSAL_DNS2}

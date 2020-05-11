@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+## Execture deployment script based on current environment
+##
+## Usage: fin deploy [git branch]
+
+# Abort if anything fails
+set -e
+
+# PROJECT_ROOT and DOCROOT are set as env variables in cli
+
+source "$PROJECT_ROOT"/.docksal/commands/includes/common.inc
+
+if [ -n "${1}" ]; then
+  _confirm "git reset --hard $1"
+  git fetch
+  git reset --hard "$1"
+fi
+
+docksal_environment=$(fin config get DOCKSAL_ENVIRONMENT --global)
+docksal_environment=${docksal_environment:-local}
+echo "Deployment environment: $docksal_environment"
+fin dktl deploy "$docksal_environment"

@@ -1,0 +1,94 @@
+---
+version: "2.4"
+
+services:
+  cli:
+    # Extend the stock cli image (see .docksal/services/cli/Dockerfile)
+    image: ${COMPOSE_PROJECT_NAME_SAFE}/cli
+    build:
+      context: services/cli
+      args:
+        PHP_VER: 7.2
+        HOST_UID: ${HOST_UID}
+        HOST_GID: ${HOST_GID}
+    volumes:
+      - project_root:/var/www/html:rw,nocopy  # Project root volume
+      - docksal_ssh_agent:/.ssh-agent:ro  # Shared ssh-agent socket
+    environment:
+      - DOCKSAL_ENVIRONMENT
+      - VIRTUAL_HOST
+      - PHP_EXTENSIONS_DISABLE
+      - PHP_FPM_CLEAR_ENV=no
+      - PHP_FPM_USER=wodby
+      - PHP_FPM_GROUP=wodby
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_PORT_MAPPING
+      - DKTL_SLUG=${COMPOSE_PROJECT_NAME_SAFE}
+      - DKTL_MODE=HOST
+      - GATSBY_API_URL=http://${VIRTUAL_HOST}/api/1
+      - DYNAMIC_API_URL=http://${VIRTUAL_HOST}/api/1
+    labels:
+      - io.docksal.type="service"
+      - io.docksal.user=wodby
+      - io.docksal.shell=bash
+
+  web:
+    hostname: web
+    image: ${COMPOSE_PROJECT_NAME_SAFE}/web
+    build:
+      context: services/web
+      args:
+        NGINX_VER: 1.15
+        HOST_UID: ${HOST_UID}
+        HOST_GID: ${HOST_GID}
+    volumes:
+      - project_root:/var/www/html:ro,nocopy  # Project root volume (read-only)
+    environment:
+      - DOCKSAL_ENVIRONMENT
+      - VIRTUAL_HOST
+      - NGINX_USER=wodby
+      - NGINX_BACKEND_HOST=cli
+      - NGINX_VHOST_PRESET=drupal8
+      - NGINX_SERVER_ROOT=/var/www/html/${DOCROOT}
+      # We need to enable NGINX_ALLOW_XML_ENDPOINTS to have the rdf/xml
+      # endpoints working.
+      - NGINX_ALLOW_XML_ENDPOINTS=1
+      - NGINX_STATIC_CONTENT_OPEN_FILE_CACHE="off"
+    labels:
+      - io.docksal.type="service"
+      - io.docksal.user=wodby
+      - io.docksal.shell=bash
+
+  db:
+    hostname: db
+    image: ${DB_IMAGE:-docksal/mariadb:10.3-1.0}
+    ports:
+      - "${MYSQL_PORT_MAPPING:-3306}"
+    volumes:
+      # Project root volume (read-only).
+      # Needed for files import.
+      - project_root:/var/www/html:ro,nocopy
+      # Database data volume
+      - db_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_ALLOW_EMPTY_PASSWORD
+      - MYSQL_RANDOM_ROOT_PASSWORD
+      - MYSQL_ONETIME_PASSWORD
+      - MYSQL_INITDB_SKIP_TZINFO
+
+volumes:
+  project_root:  # Project root volume (bind mount)
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PROJECT_ROOT}
+      o: bind
+  db_data:  # Database data volume
+  docksal_ssh_agent:  # Shared ssh-agent volume
+    external: true

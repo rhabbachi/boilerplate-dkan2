@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+## Command Line S3 Client and Backup
+##
+## Usage: fin s3cmd {s3cmd args}
+
+# - io.opendatastack.job.description="Copy files from or to S3 to or from local filesystem."
+# - io.opendatastack.args.source.description="Source file(s) (from Local filesystem)."
+# - io.opendatastack.args.source.required=true
+# - io.opendatastack.args.destination.description="Destination bucket or files to be sent to S3."
+# - io.opendatastack.args.destination.required=true
+
+# Abort if anything fails
+set -e
+
+#-------------------------- Settings --------------------------------
+
+# PROJECT_ROOT and DOCROOT are set as env variables in cli
+IMAGE_AWSCLI="xueshanf/awscli"
+
+#-------------------------- END: Settings --------------------------------
+
+#-------------------------- Helper functions --------------------------------
+
+# Console colors
+red='\033[0;31m'
+green='\033[0;32m'
+green_bg='\033[42m'
+yellow='\033[1;33m'
+NC='\033[0m'
+
+echo-red() { echo -e "${red}$1${NC}"; }
+echo-green() { echo -e "${green}$1${NC}"; }
+echo-green-bg() { echo -e "${green_bg}$1${NC}"; }
+echo-yellow() { echo -e "${yellow}$1${NC}"; }
+
+#-------------------------- END: Helper functions --------------------------------
+
+#-------------------------- Execution --------------------------------
+
+fin docker run --rm -it \
+  -u $HOST_UID:$HOST_GID \
+  -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+  -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+  -v "$COMPOSE_PROJECT_NAME_SAFE"_project_root:$PROJECT_ROOT \
+  -w $PWD \
+  ${IMAGE_AWSCLI} \
+  s3cmd \
+  --host="${AWS_S3_HOST:-s3.amazonaws.com}" \
+  --host-bucket="${AWS_S3_HOST_BUCKET:-%(bucket)s.s3.amazonaws.com}" \
+  "$@"

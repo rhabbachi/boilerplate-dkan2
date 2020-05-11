@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+## Initialize a Docksal powered DKAN 7.x site
+##
+## Usage: fin init
+
+# Abort if anything fails
+set -e
+
+# shellcheck source=/dev/null
+source "$PROJECT_ROOT"/.docksal/commands/includes/common.inc
+
+if [[ "$DOCKER_RUNNING" == "true" ]]; then
+  fin reset -f
+else
+  fin up
+fi
+
+# Will not init if already done.
+fin dktl init
+
+# Re-deploy the site based on the current environment.
+env=$(fin config get DOCKSAL_ENVIRONMENT --global)
+fin dktl deploy "${env:-local}"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+## Execture deployment script based on current environment
+##
+## Usage: fin deploy [git branch]
+
+# Abort if anything fails
+set -e
+
+# shellcheck source=/dev/null
+source "$PROJECT_ROOT"/.docksal/commands/includes/common.inc
+
+fin exec dktl "$@"

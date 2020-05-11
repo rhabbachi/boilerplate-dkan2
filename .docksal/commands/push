@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+## Take and push database or files snapshot to remote storage
+##
+## Usage: fin push [db|files]
+
+# Abort if anything fails
+set -e
+
+#-------------------------- Helper functions --------------------------------
+source $PROJECT_ROOT/.docksal/commands/includes/common.inc
+#-------------------------- END: Helper functions --------------------------------
+CONF_BACKUP_DIR=${BACKUP_DIR:backups}
+
+#-------------------------- Execution --------------------------------
+if [ -z "${PROJECT_ALIAS}" ]; then
+  echo-red "Missing Project alias"
+  exit 1
+fi
+
+TIMESTAMP=$(date -I'seconds')
+
+type=""
+if [ ! -z $1 ]; then
+  type=$1
+  shift
+else
+  echo-red "Missing snapshot type!"
+  exit 1
+fi
+
+case "$type" in
+db)
+  SNAPSHOT_FILENAME="$PROJECT_ALIAS.$DOCKSAL_ENVIRONMENT.sql.gz"
+  SNAPSHOT_FILENAME_TIMESTAMP="$PROJECT_ALIAS.$DOCKSAL_ENVIRONMENT.$TIMESTAMP.sql.gz"
+
+  snapshot_dest=$PROJECT_ROOT/$CONF_BACKUP_DIR/$SNAPSHOT_FILENAME_TIMESTAMP
+  ;;
+files)
+  SNAPSHOT_FILENAME="$PROJECT_ALIAS.$DOCKSAL_ENVIRONMENT.files.tar.gz"
+  SNAPSHOT_FILENAME_TIMESTAMP="$PROJECT_ALIAS.$DOCKSAL_ENVIRONMENT.$TIMESTAMP.files.tar.gz"
+
+  snapshot_dest=$PROJECT_ROOT/$CONF_BACKUP_DIR/$SNAPSHOT_FILENAME_TIMESTAMP
+  ;;
+*)
+  fin help push
+  ;;
+esac
+
+fin backup $type $snapshot_dest
+fin s3cmd put $snapshot_dest s3://$PROJECT_ALIAS/$SNAPSHOT_FILENAME_TIMESTAMP
+fin s3cmd cp s3://$PROJECT_ALIAS/$SNAPSHOT_FILENAME_TIMESTAMP s3://$PROJECT_ALIAS/$SNAPSHOT_FILENAME

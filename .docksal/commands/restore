@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+## Take a database or files snapshot for restore
+##
+## Usage: fin restore {db | files} {snapshot destination}
+
+# Abort if anything fails
+set -e
+
+#-------------------------- Helper functions --------------------------------
+source $PROJECT_ROOT/.docksal/commands/includes/common.inc
+#-------------------------- END: Helper functions --------------------------------
+
+#-------------------------- Execution --------------------------------
+
+_restore_db() {
+  echo-yellow "Restoring database <= $snapshot_src_filename"
+  fin exec dktl restore:db $snapshot_src_filename
+
+  # TODO better place for the grants commad.
+  echo-yellow "Granting FILE permissions to the DB user (needed to import into the Datastore).."
+  fin db cli --db=$MYSQL_DATABASE --db-user=root --db-password=$MYSQL_ROOT_PASSWORD "GRANT FILE ON *.* TO 'user'"
+
+  echo-green "Database restore done!"
+}
+
+_restore_files() {
+  echo-yellow "Unpacking files <= $snapshot_src_path"
+  tar -xz -v -f $snapshot_src_path -C $PROJECT_ROOT/src/site/
+
+  echo-green "Files restore done!"
+}
+
+type=""
+if [ ! -z $1 ]; then
+  type=$1
+  shift
+else
+  echo-red "Missing snapshot type!"
+  fin help restore
+  exit 1
+fi
+
+src=""
+if [ -z "$1" ]; then
+  echo-red "Snapshot source required!"
+  fin help restore
+  exit 1
+else
+  snapshot_src_filename=$1
+  snapshot_src_path=$PROJECT_ROOT/$BACKUP_DIR/$1
+fi
+
+echo $snapshot_src
+if [ ! -f $snapshot_src_path ]; then
+  echo-red "$snapshot_src_path does not exists or is not a file!"
+  exit 1
+fi
+
+case "$type" in
+db)
+  _restore_db
+  ;;
+files)
+  _restore_files
+  ;;
+*)
+  fin help restore
+  ;;
+esac

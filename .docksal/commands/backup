@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+## Take a database or files snapshot for backup
+##
+## Usage: fin backup {db | files} {snapshot destination}
+
+# Abort if anything fails
+set -e
+
+#-------------------------- Helper functions --------------------------------
+source $PROJECT_ROOT/.docksal/commands/includes/common.inc
+#-------------------------- END: Helper functions --------------------------------
+
+#-------------------------- Execution --------------------------------
+
+_backup_db() {
+  # Drush commands needs to be ran from docroot.
+  cd $PROJECT_ROOT/$DOCROOT
+
+  echo-yellow "Dumping database => $snapshot_dest"
+  fin drush sql-dump --extra="--max_allowed_packet=512M" | gzip -c >$snapshot_dest
+  echo-green "File dump done!"
+}
+
+_backup_files() {
+  # Tar commands to be ran from sites dir.
+  cd $PROJECT_ROOT/src/site/
+
+  echo-yellow "Archiving files => $snapshot_dest"
+  tar -cz --force-local -f $snapshot_dest files
+  echo-green "File archive done!"
+}
+
+type=""
+if [ ! -z $1 ]; then
+  type=$1
+  shift
+else
+  echo-red "Missing snapshot type!"
+  exit 1
+fi
+
+if [ -z "$1" ]; then
+  echo-red "Missing Backup snapshot destination!"
+  exit 1
+elif [ "${1: -1}" = "/" ]; then
+  echo-red "Provided Backup snapshot destination is a directory!"
+  exit 1
+fi
+
+if [ "${1:0:1}" = "/" ]; then
+  snapshot_dest=$1
+else
+  snapshot_dest=$PWD/$1
+fi
+
+if [ -f "${snapshot_dest}" ]; then
+  echo-red "Destination $snapshot_dest already exists!"
+  _confirm "Overwrite?"
+fi
+
+case "$type" in
+db)
+  _backup_db
+  ;;
+files)
+  _backup_files
+  ;;
+*)
+  fin help backup
+  ;;
+esac
+
+# Print snapshot info after processing. Useful to make sure the snapshot size
+# and date are OK.
+if [ -f "${snapshot_dest}" ]; then
+  # Print snaphot file stats.
+  echo-green "Snapshot info: $(\ls -lsh $snapshot_dest | awk '{print $10,"|",$7,$8,$9,"|",$6}')"
+else
+  echo-red "Failed to generate snapshot"
+  exit 1
+fi
